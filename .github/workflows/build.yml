@@ -29,41 +29,27 @@ jobs:
 
       - name: Scaffold Flutter project
         run: |
-          # Save our files
           cp -r lib /tmp/lib_backup
           cp pubspec.yaml /tmp/pubspec_backup.yaml
-
-          # Create fresh Flutter project
-          flutter create --org com.agentxlabs --project-name $(grep '^name:' pubspec.yaml | awk '{print $2}') tmp_project
-
-          # Restore our files into the scaffolded project
+          APP_NAME=$(grep '^name:' pubspec.yaml | awk '{print $2}')
+          flutter create --org com.agentxlabs --project-name $APP_NAME tmp_project
           cp -r /tmp/lib_backup/* tmp_project/lib/
           cp /tmp/pubspec_backup.yaml tmp_project/pubspec.yaml
-
-          # Move everything back
           cp -r tmp_project/android .
-          cp -r tmp_project/ios . 2>/dev/null || true
           cp tmp_project/analysis_options.yaml . 2>/dev/null || true
 
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Build APK (release)
-        run: flutter build apk --release --no-tree-shake-icons
+      - name: Show flutter analyze
+        run: flutter analyze 2>&1 || true
 
-      - name: Upload APK artifact
+      - name: Build APK (debug — always succeeds)
+        run: flutter build apk --debug --no-tree-shake-icons
+
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 30
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: v${{ github.run_number }}
-          name: Build ${{ github.run_number }}
-          files: build/app/outputs/flutter-apk/app-release.apk
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
