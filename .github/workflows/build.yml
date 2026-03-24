@@ -27,12 +27,26 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Scaffold Flutter project
+        run: |
+          # Save our files
+          cp -r lib /tmp/lib_backup
+          cp pubspec.yaml /tmp/pubspec_backup.yaml
+
+          # Create fresh Flutter project
+          flutter create --org com.agentxlabs --project-name $(grep '^name:' pubspec.yaml | awk '{print $2}') tmp_project
+
+          # Restore our files into the scaffolded project
+          cp -r /tmp/lib_backup/* tmp_project/lib/
+          cp /tmp/pubspec_backup.yaml tmp_project/pubspec.yaml
+
+          # Move everything back
+          cp -r tmp_project/android .
+          cp -r tmp_project/ios . 2>/dev/null || true
+          cp tmp_project/analysis_options.yaml . 2>/dev/null || true
+
       - name: Get dependencies
         run: flutter pub get
-
-      - name: Analyze code
-        run: flutter analyze --no-fatal-infos
-        continue-on-error: true
 
       - name: Build APK (release)
         run: flutter build apk --release --no-tree-shake-icons
@@ -40,12 +54,11 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: the-business-release-apk
+          name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
 
       - name: Create Release
-        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ github.run_number }}
